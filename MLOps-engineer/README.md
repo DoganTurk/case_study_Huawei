@@ -1,74 +1,156 @@
-# Case Study: MLOps Infrastructure & Serving (Mini ML Cluster)
+# MLOps Case Study: Scalable Sentiment Analysis Platform
 
-- **Role:**  MLOps Engineer
-- **Level:**  Mid-Senior
-- **Time:**  \~4-6 Hours
+This project implements a **production-grade MLOps architecture** for serving a Sentiment Analysis model on a local **Kubernetes (Kind)** cluster.
+It goes beyond simple app deployment by adding:
 
-## 1. Scenario
+- **Data Drift Monitoring**
+- **Custom Metric Autoscaling (Throughput-based)**
+- **Full Observability Stack (Prometheus + Grafana)**
 
-The Data Science team has developed a new Sentiment Analysis model (`BERT-tiny` based). Currently, they are running it manually in a Jupyter Notebook. Your task is to build a robust, scalable, and observable infrastructure to serve this model in a production-like environment.
+---
 
-## 2. The Challenge
+# Architecture Overview
 
-You are required to provision a local Kubernetes cluster, containerize the model, deploy it with high availability, and implement specific monitoring for ML metrics.
+This system uses a closed-loop control system where **application metrics → drive infrastructure scaling**, ensuring performance during traffic spikes.
 
-### Part A: Infrastructure Provisioning
+```mermaid
+graph TD
+    User(( User / Load Test)) -->|HTTP POST| Ingress[⎈ NGINX Ingress]
+    Ingress --> Service[⎈ Service]
+    Service --> Pods[ Model Pods (FastAPI)]
 
-- **Tooling:**  Use ​**Terraform**​, ​**Ansible**​, or **Kind** (Kubernetes in Docker) to provision a local Kubernetes cluster.
-- **Requirement:**  The cluster must have at least **one master** and **two worker nodes** (simulated).
-- **Ingress:**  Configure an Ingress Controller (Nginx or Traefik) to route external traffic to your services.
+    Pods -- "Metrics" --> Prometheus[ Prometheus]
+    Prometheus -- "Data" --> Grafana[ Grafana]
+    Prometheus -- "Custom Metrics" --> Adapter[ Prometheus Adapter]
+    Adapter --> HPA[ HPA]
+    HPA -- "Scale Signal" --> Pods
+```
 
-### Part B: Model Serving (The Application)
+---
 
-- **Model:**  Create a simple Python application (FastAPI or Flask) that loads a dummy model (you can use a pre-trained `scikit-learn`​ or `transformers` model, or even a mock function that sleeps for 0.5s to simulate inference).
-- **API:**
+#  Tech Stack
 
-  - ​`POST /predict`: Accepts JSON text, returns a sentiment score.
-  - ​`GET /health`: Returns service health status.
-- **Containerization:**  Create a `Dockerfile`.
+### Infrastructure
+- Kind (Kubernetes in Docker)
+- Docker Desktop
+- Helm
+- Kubectl
 
-  - **Constraint:**  Machine Learning images can be huge. Optimize the image size (e.g., use multi-stage builds, slim base images).
+### Model Serving
+- FastAPI
+- Uvicorn
+- Python 3.9 Slim
 
-### Part C: Deployment & Orchestration
+### Monitoring & Autoscaling
+- Prometheus
+- Grafana
+- Prometheus Adapter
+- Horizontal Pod Autoscaler (HPA)
 
-- **Manifests:**  Create Kubernetes manifests (Deployment, Service, Ingress, HPA) or a ​**Helm Chart**.
-- **Resource Management:**  Define `requests`​ and `limits` for CPU and Memory.
+### Automation
+- PowerShell scripts
+- Python utilities
 
-  - *Bonus:*  Add a node selector or toleration to simulate scheduling the pod on a "GPU-enabled" node.
-- **Scalability:**  Configure a ​**Horizontal Pod Autoscaler (HPA)** .
+---
 
-  - *MLOps Specific:*  The HPA should scale based on a custom metric (e.g., `requests_per_second`​ or `avg_inference_latency`), not just CPU usage.
+#  Quick Start (Windows PowerShell)
 
-### Part D: MLOps Observability (Critical)
+## 1. Prerequisites
 
-Unlike standard web apps, ML models can fail silently (data drift).
+Ensure you have installed and added to PATH:
 
-- **Metrics:**  Implement a `/metrics`​ endpoint using the **Prometheus** client. Expose:
+- Docker Desktop (running)
+- Kind
+- Helm
+- Kubectl
+- Python 3.x
 
-  - ​`inference_latency_seconds` (Histogram)
-  - ​`prediction_count_total` (Counter)
-  - ​`model_confidence_score` (Gauge - simulate a random score between 0.0 and 1.0)
-- **Visualisation:**  Deploy a simple **Grafana** instance pre-configured with a dashboard showing these metrics.
+## 2. Spin Up Environment
 
-## 3. Deliverables
+```powershell
+.\scripts\quickstart.ps1
+```
 
-Please provide a GitHub repository containing:
+Estimated time: **4–5 minutes**
 
-1. ​ **​`/infrastructure`​**: Code to spin up the cluster (Kind config, Terraform, etc.).
-2. ​ **​`/model-service`​**: Source code and Dockerfile for the ML app.
-3. ​ **​`/deploy`​**: Helm charts or K8s manifests.
-4. ​**​`README.md`​**: A clear guide on how to:
+## 3. Verify Deployment
 
-    - Prerequisites.
-    - Command to start the cluster.
-    - Command to deploy the model.
-    - Command to generate load (e.g., `hey`​ or `k6` script) to demonstrate Autoscaling.
+```powershell
+kubectl get pods
+```
 
-## 4. Evaluation Criteria
+---
 
-We will look for:
+# Validation & Load Testing
 
-- **Separation of Concerns:**  Is infrastructure code separated from application code?
-- **ML Awareness:**  Did you handle the heavy dependencies (PyTorch/Scikit) efficiently in the Dockerfile?
-- **Observability:**  Can we see the "Confidence Score" in Grafana? This shows you understand that ML monitoring goes beyond CPU/RAM.
-- **Automation:**  How easy is it to stand up the environment? (Ideally one or two scripts).
+## 1. Port Forwarding
+
+### Terminal A: Grafana
+
+```powershell
+kubectl port-forward svc/monitor-grafana 3000:80
+```
+
+Access: http://localhost:3000  
+User: admin  
+Password: provided in script output
+
+### Terminal B: Model API
+
+```powershell
+kubectl port-forward svc/sentiment-service 8000:80
+```
+
+## 2. Autoscaling Test
+
+### Terminal C: Run Load Generator
+
+```powershell
+python scripts/auto_test.py
+```
+
+### Terminal D: Watch HPA Scaling
+
+```powershell
+kubectl get hpa -w
+```
+
+Expected Behavior:
+- Traffic increases requests_per_second
+- HPA uses Prometheus Adapter metrics
+- Replica count scales from 1 → 10
+
+---
+
+#  Observability & Drift Detection
+
+The Grafana Dashboard (`dashboard.json`) includes:
+
+### Drift Monitor (Confidence Score)
+- Green: healthy (>0.8)
+- Red: drift (<0.6)
+- Filters out idle data
+
+### System Performance Panels
+- Requests per second (RPS)
+- P95 latency
+- Active replicas during scaling events
+
+---
+
+#  Directory Structure
+
+```
+/deploy           # Kubernetes Manifests & Helm Configs
+/infrastructure   # Kind Cluster Configuration
+/model-service    # Python Application & Dockerfile
+/scripts          # Automation & Testing Scripts
+```
+
+---
+
+#  Cleanup
+
+```powershell
+.\scripts\cleanup.ps1
+```

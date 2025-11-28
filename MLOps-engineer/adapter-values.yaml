@@ -1,0 +1,16 @@
+prometheus:
+  url: "http://monitor-kube-prometheus-st-prometheus.default.svc"
+  port: 9090
+rules:
+  default: false
+  custom:
+    - seriesQuery: '{__name__=~"^prediction_count_total.*",namespace!=""}'
+      resources:
+        overrides:
+          namespace: {resource: "namespace"}
+          pod: {resource: "pod"}
+          service: {resource: "service"}
+      name:
+        matches: "^prediction_count_total"
+        as: "requests_per_second"
+      metricsQuery: "sum(rate(<<.Series>>{<<.LabelMatchers>>}[2m])) by (<<.GroupBy>>)"

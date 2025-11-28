@@ -1,0 +1,14 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: sentiment-monitor
+  labels:
+    release: monitor  # This should match the Prometheus Operator release name
+spec:
+  selector:
+    matchLabels:
+      app: sentiment-model  # This matches the label in Service
+  endpoints:
+  - port: http-metrics # This matches the port name in Service
+    path: /metrics
+    interval: 15s

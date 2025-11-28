@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sentiment-model
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sentiment-model
+  template:
+    metadata:
+      labels:
+        app: sentiment-model
+      annotations:
+        # Scrape annotations for Prometheus
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8000"
+        prometheus.io/path: "/metrics"
+    spec:
+      containers:
+      - name: sentiment-model
+        image: sentiment-model:v1
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8000
+        resources:
+          requests:
+            cpu: "250m"
+            memory: "256Mi"
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+      # BONUS: Scheduling on specific hardware
+      nodeSelector:
+        accelerator: nvidia-gpu
+      # Toleration required if the node was tainted (common in GPU nodes)
+      tolerations:
+      - key: "accelerator"
+        operator: "Exists"
+        effect: "NoSchedule"
