@@ -15,14 +15,14 @@ This system uses a closed-loop control system where **application metrics → dr
 
 ```mermaid
 graph TD
-    User(( User / Load Test)) -->|HTTP POST| Ingress[⎈ NGINX Ingress]
-    Ingress --> Service[⎈ Service]
-    Service --> Pods[ Model Pods (FastAPI)]
+    User(("User / Load Test")) -->|HTTP POST| Ingress["⎈ NGINX Ingress"]
+    Ingress --> Service["⎈ Service"]
+    Service --> Pods["Model Pods (FastAPI)"]
 
-    Pods -- "Metrics" --> Prometheus[ Prometheus]
-    Prometheus -- "Data" --> Grafana[ Grafana]
-    Prometheus -- "Custom Metrics" --> Adapter[ Prometheus Adapter]
-    Adapter --> HPA[ HPA]
+    Pods -- "Metrics" --> Prometheus[" Prometheus"]
+    Prometheus -- "Data" --> Grafana[" Grafana"]
+    Prometheus -- "Custom Metrics" --> Adapter[" Prometheus Adapter"]
+    Adapter --> HPA[" HPA"]
     HPA -- "Scale Signal" --> Pods
 ```
 
